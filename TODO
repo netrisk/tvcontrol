@@ -5,4 +5,6 @@ Update the files:
  - AUTHORS
  - ChangeLog
  - COPYING
-
+ - Make some libraries optional with a configure flag:
+   * libcec
+   * libaosd
