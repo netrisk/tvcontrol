@@ -1,0 +1,28 @@
+LIST OF COMMANDS
+================
+cec poweron all - Command that powers on every device found in CEC
+cec standby all - Command that standbies every device found in CEC
+cec setactive   - Configure the current device as actie in CEC
+exit            - Make the tvcontrold daemon exit.
+
+COMPILING INSTRUCTIONS
+======================
+To compile this tool you should have the following
+tools in your system:
+ autoconf
+ g++
+ make
+ libcec-dev
+
+DEVELOPMENT
+===========
+During the development of this product other projects
+should be taken into account:
+  Multimedia keyboard: www.remoot.org
+  libaosd
+  libcec
+  xbmc
+
+Some howtos:
+  http://en.gentoo-wiki.com/wiki/Multimedia_Keys
+  http://www.kollerat.com/cms/index.php/Allgemein/Software/Control-VLC-via-global-hotkeys-xbindkeys-under-Linux.html

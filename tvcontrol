@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Send the arguments to the UDP socket that is being used by tvcontrold
+echo -n "$@" | socat STDIN UDP-SENDTO:localhost:1423
