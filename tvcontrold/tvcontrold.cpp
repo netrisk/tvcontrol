@@ -10,7 +10,7 @@ int main(void)
 {
 	/* Initialize the log */
 	tc_log_init();
-	tc_log(TC_LOG_INFO, "Starting tvcontold");
+	tc_log(TC_LOG_INFO, "Starting tvcontrold");
 
 	/* Go to the home path for loading data */
 	const char *home = getenv("HOME");
@@ -37,15 +37,15 @@ int main(void)
 	tc_cmd("startup", 7);
 
 	/* We have started */
-	tc_log(TC_LOG_INFO, "Started tvcontold");
+	tc_log(TC_LOG_INFO, "Started tvcontrold");
 
 	/* Serve commands */
 	tc_server_exec();
 
 	/* Release everything */
-	tc_log(TC_LOG_INFO, "Closing tvcontold");
+	tc_log(TC_LOG_INFO, "Closing tvcontrold");
 	tc_cec_release();
 	tc_server_release();
-	tc_log(TC_LOG_INFO, "Closed tvcontold");
+	tc_log(TC_LOG_INFO, "Closed tvcontrold");
 	return EXIT_SUCCESS;
 }
