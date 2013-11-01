@@ -9,7 +9,7 @@ AC_PROG_CXX
 AC_PROG_INSTALL
 PKG_PROG_PKG_CONFIG
 
-# This adds the option of compiling without using cec
+# This adds the option of compiling without using CEC
 AC_ARG_ENABLE(cec,
   [  --disable-cec           disable CEC support],
   [case "${enableval}" in
@@ -18,10 +18,9 @@ AC_ARG_ENABLE(cec,
    esac],
   [WITH_CEC="yes"]
 )
-
 AM_CONDITIONAL([WITH_CEC], [test "x$WITH_CEC" = "xyes"])
 
-# Define CEC in config.h if we're going to compile against it
+# Define ENABLE_CEC in config.h if we're going to compile against it
 if test "x$WITH_CEC" = "xyes"; then
     AC_DEFINE([ENABLE_CEC], [], [Build with CEC support])
     AC_MSG_NOTICE([CEC support enabled])
