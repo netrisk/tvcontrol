@@ -308,6 +308,7 @@ static tc_cmd_t tc_cmd_set = {
 	.exec = tc_cmd_set_exec
 };
 
+#ifdef ENABLE_OSD
 /**
  *  Execute a OSD command.
  *
@@ -336,6 +337,7 @@ static tc_cmd_t tc_cmd_osd = {
 	.name = "osd",
 	.exec = tc_cmd_osd_exec
 };
+#endif /* ENABLE_OSD */
 
 #ifdef ENABLE_CEC
 /**
@@ -669,7 +671,9 @@ int tc_cmd_init(bool readhome)
 {
 	tc_cmd_add(&tc_cmd_exit);
 	tc_cmd_add(&tc_cmd_set);
+	#ifdef ENABLE_OSD
 	tc_cmd_add(&tc_cmd_osd);
+	#endif /* ENABLE_OSD */
 	#ifdef ENABLE_CEC
 	tc_cmd_add(&tc_cmd_cec);
 	#endif /* ENABLE_CEC */

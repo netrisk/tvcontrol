@@ -1,3 +1,7 @@
+#include <config.h>
+
+#ifdef ENABLE_OSD
+
 #include <tc_osd.h>
 #include <tc_log.h>
 #include <tc_msg.h>
@@ -255,3 +259,5 @@ int tc_osd_png(const char *file, uint8_t len)
 	}
 	return 0;
 }
+
+#endif /* ENABLE_OSD */

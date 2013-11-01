@@ -1,6 +1,10 @@
 #ifndef TC_OSD_H_INCLUDED
 #define TC_OSD_H_INCLUDED
 
+#include <config.h>
+
+#ifdef ENABLE_OSD
+
 #include <tc_types.h>
 
 /**
@@ -30,5 +34,7 @@ int tc_osd_svg(const char *file, uint8_t len);
  *  \retval 0 on success.
  */
 int tc_osd_png(const char *file, uint8_t len);
+
+#endif /* ENABLE_OSD */
 
 #endif /* TC_OSD_H_INCLUDED */

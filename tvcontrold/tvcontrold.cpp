@@ -30,8 +30,10 @@ int main(void)
 	if (tc_cec_init())
 		return EXIT_FAILURE;
 	#endif /* ENABLE_CEC */
+	#ifdef ENABLE_OSD
 	if (tc_osd_init())
 		return EXIT_FAILURE;
+	#endif /* ENABLE_OSD */
 	if (tc_server_init())
 		return -1;
 
