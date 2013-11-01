@@ -5,6 +5,7 @@
 #include <tc_osd.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <config.h>
 
 int main(void)
 {
@@ -25,8 +26,10 @@ int main(void)
 	/* Initialize every submodule */
 	if (tc_cmd_init(readhome))
 		return EXIT_FAILURE;
+	#ifdef ENABLE_CEC
 	if (tc_cec_init())
 		return EXIT_FAILURE;
+	#endif /* ENABLE_CEC */
 	if (tc_osd_init())
 		return EXIT_FAILURE;
 	if (tc_server_init())
@@ -44,7 +47,9 @@ int main(void)
 
 	/* Release everything */
 	tc_log(TC_LOG_INFO, "Closing tvcontrold");
+	#ifdef ENABLE_CEC
 	tc_cec_release();
+	#endif /* ENABLE_CEC */
 	tc_server_release();
 	tc_log(TC_LOG_INFO, "Closed tvcontrold");
 	return EXIT_SUCCESS;

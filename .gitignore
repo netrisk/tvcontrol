@@ -5,6 +5,9 @@ autom4te.cache/
 config.log
 config.status
 configure
+config.h
+config.h.in
+stamp-h1
 depcomp
 install-sh
 missing

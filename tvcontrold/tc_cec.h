@@ -1,6 +1,10 @@
 #ifndef TC_CEC_H_INCLUDED
 #define TC_CEC_H_INCLUDED
 
+#include <config.h>
+
+#ifdef ENABLE_CEC
+
 /**
  *  Initialize the CEC control module of TV control. 
  *
@@ -43,5 +47,7 @@ void tc_cec_volumeup(void);
  *  Send the volume down signal.
  */
 void tc_cec_volumedown(void);
+
+#endif /* ENABLE_CEC */
 
 #endif // TC_CEC_H_INCLUDED

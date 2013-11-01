@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <config.h>
 
 /* Define the following macro to debug */
 /* #define TC_CMD_DEBUG */
@@ -336,6 +337,7 @@ static tc_cmd_t tc_cmd_osd = {
 	.exec = tc_cmd_osd_exec
 };
 
+#ifdef ENABLE_CEC
 /**
  *  Execute a CEC command.
  *
@@ -387,6 +389,7 @@ static tc_cmd_t tc_cmd_cec = {
 	.name = "cec",
 	.exec = tc_cmd_cec_exec
 };
+#endif /* ENABLE_CEC */
 
 /** Pionner object type */
 typedef struct tc_cmd_pioneer_t {
@@ -667,7 +670,9 @@ int tc_cmd_init(bool readhome)
 	tc_cmd_add(&tc_cmd_exit);
 	tc_cmd_add(&tc_cmd_set);
 	tc_cmd_add(&tc_cmd_osd);
+	#ifdef ENABLE_CEC
 	tc_cmd_add(&tc_cmd_cec);
+	#endif /* ENABLE_CEC */
 	tc_cmd_add(&tc_cmd_init_cmd);
 	if (tc_cmd_load("/etc/tvcontrold/cmd.conf") < 0)
 		return -1;
