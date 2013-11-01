@@ -1,3 +1,7 @@
+#include <config.h>
+
+#ifdef ENABLE_CEC
+
 #include <tc_log.h>
 #include <tc_server.h>
 #include <stdlib.h>
@@ -408,3 +412,5 @@ void tc_cec_mute(void)
     	if (!tc_cec_adapter->SendKeyRelease(CEC::CECDEVICE_AUDIOSYSTEM, true))
     		tc_log(TC_LOG_ERR, "Error sending Mute");
 }
+
+#endif /* ENABLE_CEC */
