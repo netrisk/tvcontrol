@@ -10,4 +10,4 @@ tvcontrold_SOURCES=\
 	tc_tools.cpp \
 	tc_msg.cpp
 tvcontrold_CXXFLAGS=@LIBCEC_CFLAGS@ @LIBAOSD_CFLAGS@ @LIBRSVG_CFLAGS@
-tvcontrold_LDADD=@LIBCEC_LIBS@ @LIBAOSD_LIBS@ @LIBRSVG_LIBS@ -ldl
+tvcontrold_LDADD=@LIBCEC_LIBS@ @LIBAOSD_LIBS@ @LIBRSVG_LIBS@ -ldl -lpthread
