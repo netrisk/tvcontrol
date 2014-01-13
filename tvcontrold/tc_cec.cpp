@@ -224,7 +224,7 @@ int tc_cec_init(void)
 	// Initialize the CEC objects generic way
 	tc_cec_config.Clear();
 	tc_cec_callbacks.Clear();
-	tc_cec_config.clientVersion = 0;
+	tc_cec_config.clientVersion = CEC::CEC_CLIENT_VERSION_CURRENT;
 	tc_cec_config.bActivateSource = 0;
 	tc_cec_callbacks.CBCecLogMessage = &tc_cec_logmessage;
 	tc_cec_callbacks.CBCecKeyPress   = &tc_cec_keypress;
