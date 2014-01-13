@@ -76,7 +76,7 @@ static tc_cec_device_t tc_cec_devices[TC_CEC_DEVICES_COUNT];
 
 /* --- CEC event management ----------------------------------------------- */
 
-static int tc_cec_logmessage(void *cbparam, const CEC::cec_log_message &message)
+static int tc_cec_logmessage(void *cbparam, CEC::cec_log_message message)
 {
 	if ((message.level & tc_cec_log_level) != message.level)
 		return 0;
@@ -94,7 +94,7 @@ static int tc_cec_logmessage(void *cbparam, const CEC::cec_log_message &message)
 	return 0;
 }
 
-static int tc_cec_keypress(void *cbparam, const CEC::cec_keypress &key)
+static int tc_cec_keypress(void *cbparam, CEC::cec_keypress key)
 {
 	tc_log(TC_LOG_WARN, "Unknown key pressed: code=%u duration=%u",
 	       (unsigned)key.keycode, (unsigned)key.duration);
@@ -118,7 +118,7 @@ static void tc_cec_event(char *event)
 	tc_server_event(event, l);
 }
 
-static int tc_cec_command(void *cbparam, const CEC::cec_command &command)
+static int tc_cec_command(void *cbparam, CEC::cec_command command)
 {
 	// Try to find the initiator device
 	tc_cec_device_t *initiator = NULL;
@@ -198,7 +198,7 @@ static int tc_cec_command(void *cbparam, const CEC::cec_command &command)
 }
 
 static int tc_cec_alert(void *cbparam, const CEC::libcec_alert type,
-                        const CEC::libcec_parameter &param)
+                        CEC::libcec_parameter param)
 {
 	switch (type) {
 	case CEC::CEC_ALERT_CONNECTION_LOST:
@@ -234,10 +234,10 @@ int tc_cec_init(void)
 
 	// Application specific configuration of CEC objects
 	// TODO: Make the types of devices configurable
-	//tc_cec_config.deviceTypes.add(CEC::CEC_DEVICE_TYPE_PLAYBACK_DEVICE);
-	tc_cec_config.deviceTypes.add(CEC::CEC_DEVICE_TYPE_RECORDING_DEVICE);
-	//tc_cec_config.deviceTypes.add(CEC::CEC_DEVICE_TYPE_TUNER);
-	//tc_cec_config.deviceTypes.add(CEC::CEC_DEVICE_TYPE_AUDIO_SYSTEM);
+	//tc_cec_config.deviceTypes.Add(CEC::CEC_DEVICE_TYPE_PLAYBACK_DEVICE);
+	tc_cec_config.deviceTypes.Add(CEC::CEC_DEVICE_TYPE_RECORDING_DEVICE);
+	//tc_cec_config.deviceTypes.Add(CEC::CEC_DEVICE_TYPE_TUNER);
+	//tc_cec_config.deviceTypes.Add(CEC::CEC_DEVICE_TYPE_AUDIO_SYSTEM);
 	
 	// Configure more parts
 	// TODO: tc_cec_config.baseDevice (integer)
