@@ -16,3 +16,4 @@ tvcontrold/Makefile
 tvcontrold/Makefile.in
 tvcontrold/tvcontrold
 tvcontrold/*.o
+compile
