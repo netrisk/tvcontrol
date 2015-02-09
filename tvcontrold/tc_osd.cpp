@@ -13,6 +13,8 @@
 #include <librsvg/rsvg.h>
 #include <librsvg/rsvg-cairo.h>
 #include <cairo/cairo.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 /* Enable this macro for debugging */
 #define TC_OSD_DEBUG
@@ -148,6 +150,8 @@ static void tc_osd_render(cairo_t *cr, void *data)
 
 static void *tc_osd_exec(void *arg)
 {
+	tc_log(TC_LOG_INFO, "osd: thread pid:%u", (unsigned)syscall(SYS_gettid));
+
 	tc_osd_data_t data = {0};
 
 	while (true) {

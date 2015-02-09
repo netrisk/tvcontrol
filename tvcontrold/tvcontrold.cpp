@@ -6,12 +6,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <config.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 int main(void)
 {
 	/* Initialize the log */
 	tc_log_init();
 	tc_log(TC_LOG_INFO, "Starting tvcontrold");
+	tc_log(TC_LOG_INFO, "main thread pid:%u", (unsigned)syscall(SYS_gettid));
 
 	/* Go to the home path for loading data */
 	const char *home = getenv("HOME");

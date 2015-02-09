@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/poll.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
 #include <sys/socket.h>
 #include <string.h>
 #include <netdb.h>
@@ -290,6 +291,8 @@ static uint32_t tc_pioneer_tx(tc_pioneer_t *p, char *buf, uint32_t len,
  */
 static void *tc_pioneer_exec(void *arg)
 {
+	tc_log(TC_LOG_INFO, "pioneer: thread pid:%u", (unsigned)syscall(SYS_gettid));
+
 	/* Forevery try to connect and process */
 	uint8_t cmd = TC_PIONEER_CMD_NONE;
 	char rx_buf[256];
