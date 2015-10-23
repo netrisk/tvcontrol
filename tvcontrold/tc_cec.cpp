@@ -224,7 +224,7 @@ int tc_cec_init(void)
 	// Initialize the CEC objects generic way
 	tc_cec_config.Clear();
 	tc_cec_callbacks.Clear();
-	tc_cec_config.clientVersion = CEC::CEC_CLIENT_VERSION_CURRENT;
+	tc_cec_config.clientVersion = CEC::LIBCEC_VERSION_CURRENT;
 	tc_cec_config.bActivateSource = 0;
 	tc_cec_callbacks.CBCecLogMessage = &tc_cec_logmessage;
 	tc_cec_callbacks.CBCecKeyPress   = &tc_cec_keypress;
@@ -286,14 +286,14 @@ int tc_cec_init(void)
 	// Show the version in the log (more information for 1.7.2 and on)
 	#if CEC_LIB_VERSION_MINOR >= 7
 	tc_log(TC_LOG_INFO, "libCEC version: %s%s%s",
-		tc_cec_adapter->ToString((CEC::cec_server_version)tc_cec_config.serverVersion),
+		tc_cec_adapter->ToString((CEC::cec_version)tc_cec_config.serverVersion),
 		(tc_cec_config.serverVersion >= 0x1702) ? ", " : "",
 		(tc_cec_config.serverVersion >= 0x1702) ?
 			tc_cec_adapter->GetLibInfo() : ""
 	);
 	#else
 	tc_log(TC_LOG_INFO, "libCEC version: %s",
-	       tc_cec_adapter->ToString((CEC::cec_server_version)tc_cec_config.serverVersion));
+	       tc_cec_adapter->ToString((CEC::cec_version)tc_cec_config.serverVersion));
 	#endif
 
 	// Try to autodetect the port if not provided

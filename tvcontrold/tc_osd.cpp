@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <librsvg/rsvg.h>
-#include <librsvg/rsvg-cairo.h>
 #include <cairo/cairo.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
@@ -220,7 +219,6 @@ static void *tc_osd_exec(void *arg)
 
 int tc_osd_init(void)
 {
-	g_type_init();
 	if (tc_msg_queue_create(&tc_osd_queue)) {
 		tc_log(TC_LOG_ERR, "osd: msg queue creation error");
 		return -1;
