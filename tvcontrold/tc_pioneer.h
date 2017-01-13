@@ -63,9 +63,10 @@ int tc_pioneer_init(tc_pioneer_t *pioneer,
 #define TC_PIONEER_CMD_LISTENMODE_DIRECT    (17)
 #define TC_PIONEER_CMD_LISTENMODE_ALC       (18)
 #define TC_PIONEER_CMD_LISTENMODE_EXPANDED  (19)
-#define TC_PIONEER_CMD_INPUT_TUNER (20)
-#define TC_PIONEER_CMD_INPUT_DVD   (21)
-#define TC_PIONEER_CMD_INPUT_TV    (22)
+#define TC_PIONEER_CMD_INPUT_TUNER      (20)
+#define TC_PIONEER_CMD_INPUT_DVD        (21)
+#define TC_PIONEER_CMD_INPUT_TV         (22)
+#define TC_PIONEER_CMD_INPUT_SAT        (23)
 
 /**
  *  Execute the commands through the pioneer.

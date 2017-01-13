@@ -458,6 +458,8 @@ static int tc_cmd_pioneer_exec(tc_cmd_t *cmd, const char *buf, uint32_t len)
 			c = TC_PIONEER_CMD_INPUT_DVD;
 		else if (tc_cmd_is(buf, len, "tv"))
 			c = TC_PIONEER_CMD_INPUT_TV;
+		else if (tc_cmd_is(buf, len, "sat"))
+			c = TC_PIONEER_CMD_INPUT_SAT;
 	}
 	if (c == TC_PIONEER_CMD_NONE)
 		return -1;

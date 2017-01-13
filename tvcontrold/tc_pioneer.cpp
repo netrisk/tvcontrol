@@ -275,6 +275,7 @@ static uint32_t tc_pioneer_tx(tc_pioneer_t *p, char *buf, uint32_t len,
 	case TC_PIONEER_CMD_INPUT_TUNER:          str = "02FN\r\n"; break;
 	case TC_PIONEER_CMD_INPUT_DVD:            str = "04FN\r\n"; break;
 	case TC_PIONEER_CMD_INPUT_TV:             str = "05FN\r\n"; break;
+	case TC_PIONEER_CMD_INPUT_SAT:            str = "06FN\r\n"; break;
 	}
 	if (str) {
 		memcpy(buf, str, strlen(str));
