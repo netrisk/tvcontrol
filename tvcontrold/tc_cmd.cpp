@@ -581,6 +581,36 @@ static int tc_cmd_script_init(const char *buf, uint32_t len)
 }
 
 
+/* --- Process execution commands ---------------------------------------- */
+
+/**
+ *  Execute an process command
+ *
+ *  \param cmd  Pointer to the command to execute.
+ *  \param buf  Buffer with the command to execute.
+ *  \param len  Length of the command to execute
+ *  \retval 0 on success of normal command.
+ *  \retval 1 on exit command.
+ *  \retval -1 on error in command.
+ */
+static int tc_cmd_exec_exec(tc_cmd_t *cmd, const char *buf, uint32_t len)
+{
+	/* exec <process> <arguments> */
+	char *command = (char *)malloc(len + 1);
+	memcpy(command, buf, len);
+	command[len] = 0;
+	tc_log(TC_LOG_INFO, "Executing command: \"%s\"", command);
+	int r = system(command);
+	return r ? -1 : 0;
+}
+
+/** Init command object */
+static tc_cmd_t tc_cmd_exec_cmd = {
+	.name = "exec",
+	.exec = tc_cmd_exec_exec
+};
+
+
 /* --- Initialization commands -------------------------------------------- */
 
 /**
@@ -677,6 +707,7 @@ int tc_cmd_init(bool readhome)
 	#ifdef ENABLE_CEC
 	tc_cmd_add(&tc_cmd_cec);
 	#endif /* ENABLE_CEC */
+	tc_cmd_add(&tc_cmd_exec_cmd);
 	tc_cmd_add(&tc_cmd_init_cmd);
 	if (tc_cmd_load("/etc/tvcontrold/cmd.conf") < 0)
 		return -1;
