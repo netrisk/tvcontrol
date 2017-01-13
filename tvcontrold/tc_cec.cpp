@@ -110,8 +110,11 @@ static void tc_cec_event(char *event)
 {
 	int l = strlen(event);
 	int i;
-	for (i = 0; i < l; i++)
+	for (i = 0; i < l; i++) {
 		event[i] = tolower(event[i]);
+		if (event[i] == ' ')
+			event[i] = '_';
+	}
 	#ifdef TC_CEC_DEBUG
 	tc_log(TC_LOG_DEBUG, "cec: event: %s", event);
 	#endif /* TC_CEC_DEBUG */
