@@ -20,6 +20,7 @@ typedef struct tc_pioneer_t {
 	bool pwr;         /**< Power status of the pioneer       */
 	uint32_t vol;     /**< Volume number.                    */
 	uint8_t fl[16];   /**< Data of FL (screen info).         */
+	uint32_t fn;      /**< Input                             */
 	bool mute;        /**< Mute status of the receiver       */
 	bool mute_known;  /**< Variable to know if mute is known */
 	uint8_t mc;       /**< Current MCACC using               */

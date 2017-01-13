@@ -157,6 +157,22 @@ static void tc_pioneer_rx(tc_pioneer_t *p, const char *buf,
 			#endif /* TC_PIONEER_DEBUG */
 			return;
 		}
+	/* Check for the on screen information */
+	} else if (len == 4 && !strncmp(buf, "FN", 2)) {
+		if (!tc_pioneer_parse_decn(buf + 2, &p->fn, 2)) {
+			#ifdef TC_PIONEER_DEBUG
+			tc_log(TC_LOG_DEBUG, "pioneer: input: \"%u\"", p->fn);
+			#endif /* TC_PIONEER_DEBUG */
+			const char *event = "on_pioneer_input_unknown";
+			switch (p->fn) {
+			case 2: event = "on_pioneer_input_tuner"; break;
+			case 4: event = "on_pioneer_input_dvd"; break;
+			case 5: event = "on_pioneer_input_tv"; break;
+			case 6: event = "on_pioneer_input_sat"; break;
+			}
+			tc_server_event(event, strlen(event));
+			return;
+		}
 	/* Check for the mute information */
 	} else if (len == 4 && !strncmp(buf, "MUT", 3)) {
 		bool newmute;
