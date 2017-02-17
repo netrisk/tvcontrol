@@ -6,15 +6,104 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <sys/poll.h>
+#include <string.h>
 
-static int tc_server_fd = -1;
+static int tc_server_udp_fd = -1;
+static int tc_server_tcp_fd = -1;
+static int tc_server_tcp_con = -1;
 static tc_msg_queue_t tc_server_queue = TC_MSG_QUEUE_INIT;
+static uint8_t tc_server_tcp_data[1000];
+uint32_t tc_server_tcp_len = 0;
+
+/**
+ *  Analize the HTTP header.
+ *
+ *  \param data  Data to analyze.
+ *  \param len   Length of the data.
+ *  \return -1 if the data has errors.
+ *  \return 0 if the data has been processed with success.
+ *  \return 1 if we need more data.
+ */
+static int tc_server_tcp_analyze(const uint8_t *data, uint32_t len)
+{
+	/* Check HTTP header */
+	if (len < 4)
+		return 1;
+	if (memcmp(data, "GET ", 4))
+		return -1;
+	/* Get the command */
+	char buf[257];
+	uint32_t buf_len = 0;
+	uint32_t index = 4;
+	uint32_t scape_index = 0;
+	uint8_t  scape_char = 0;
+	while (true) {
+		if (index == len)
+			return 1;
+		char c = data[index++];
+		if (c == ' ' || c == '\t' || c == '\r') {
+			if (buf_len)
+				break;
+			else
+				continue;
+		}
+		if (buf_len + 1 == sizeof(buf))
+			return -1;
+		if (scape_index) {
+			uint8_t scape_digit = 0;
+			if (c >= '0' || c <= '9')
+				scape_digit = c - '0';
+			else if (c >= 'a' || c <= 'f')
+				scape_digit = c - ('a' - 10);
+			else if (c >= 'A' || c <= 'F')
+				scape_digit = c - ('A' - 10);
+			else
+				return -1;
+			scape_char <<= 4;
+			scape_char |= scape_digit;
+			if (scape_index == 2)
+				buf[buf_len++] = scape_char;
+			continue;
+		} else if (c == '%') {
+			scape_index = 1;
+			scape_char = 0;
+			continue;
+		}
+		buf[buf_len++] = c;
+	}
+	/* Execute the command */
+	buf[buf_len++] = 0;
+	/* Check if it is a command */
+	if (buf_len >= 5 && !memcmp(buf, "/cmd/", 5)) {
+		char *cmd = buf + 5;
+		uint32_t cmd_len = buf_len - 5;
+		tc_log(TC_LOG_INFO, "Command: \"%s\"", cmd);
+		int ret = tc_cmd(cmd, cmd_len);
+		if (ret > 0)
+			return 0;
+		if (ret < 0) {
+			tc_log(TC_LOG_ERR, "Error in command: \"%s\"", cmd);
+			return -1;
+		}
+		return 1;
+	}
+	/* Return success */
+	return 0;
+}
 
 void tc_server_release(void)
 {
-	if (tc_server_fd != -1) {
-		close(tc_server_fd);
-		tc_server_fd = -1;
+	if (tc_server_udp_fd != -1) {
+		close(tc_server_udp_fd);
+		tc_server_udp_fd = -1;
+	}
+	if (tc_server_tcp_fd != -1) {
+		close(tc_server_tcp_fd);
+		tc_server_tcp_fd = -1;
+	}
+	if (tc_server_tcp_con != -1) {
+		close(tc_server_tcp_con);
+		tc_server_tcp_con = -1;
 	}
 	tc_msg_queue_close(&tc_server_queue);
 }
@@ -22,9 +111,14 @@ void tc_server_release(void)
 int tc_server_init(void)
 {
 	/* Open the socket */
-	tc_server_fd = socket(PF_INET, SOCK_DGRAM, 0);
-	if (tc_server_fd == -1) {
-		tc_log(TC_LOG_ERR, "Error creating server socket");
+	tc_server_udp_fd = socket(PF_INET, SOCK_DGRAM, 0);
+	if (tc_server_udp_fd == -1) {
+		tc_log(TC_LOG_ERR, "Error creating UDP server socket");
+		return -1;
+	}
+	tc_server_tcp_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (tc_server_udp_fd == -1) {
+		tc_log(TC_LOG_ERR, "Error creating TCP server socket");
 		return -1;
 	}
 
@@ -33,9 +127,21 @@ int tc_server_init(void)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(1423);
 	addr.sin_addr.s_addr = INADDR_ANY;
-	int r = bind(tc_server_fd, (struct sockaddr *)&addr, sizeof(addr));
+	int r = bind(tc_server_udp_fd, (struct sockaddr *)&addr, sizeof(addr));
 	if (r) {
-		tc_log(TC_LOG_ERR, "Error binding server socket");
+		tc_log(TC_LOG_ERR, "Error binding UDP server socket");
+		tc_server_release();
+		return -1;
+	}
+	r = bind(tc_server_tcp_fd, (struct sockaddr *)&addr, sizeof(addr));
+	if (r) {
+		tc_log(TC_LOG_ERR, "Error binding TCP server socket");
+		tc_server_release();
+		return -1;
+	}
+	r = listen(tc_server_tcp_fd, 10);
+	if (r) {
+		tc_log(TC_LOG_ERR, "Error listening TCP server socket");
 		tc_server_release();
 		return -1;
 	}
@@ -55,18 +161,39 @@ void tc_server_exec(void)
 	/* Wait for anything to be received */
 	while (true) {
 		/* Check if there is any reception event */
-		struct pollfd fds[2];	
-		fds[0].fd = tc_server_fd;
-		fds[0].events = POLLIN;
-		fds[1].fd = TC_MSG_QUEUE_POLLFD(&tc_server_queue);
-		fds[1].events = POLLIN;
-		int r = poll(fds, 2, -1);
-		if (fds[0].revents & POLLIN) {
-			/* We have received a message */
+		struct pollfd fds[4];
+		uint32_t fdn = 0;
+		struct pollfd *fd_udp = NULL;
+		struct pollfd *fd_tcp = NULL;
+		struct pollfd *fd_queue = NULL;
+		struct pollfd *fd_tcp_con = NULL;
+		fds[fdn].fd = tc_server_udp_fd;
+		fds[fdn].events = POLLIN;
+		fd_udp = &fds[fdn];
+		fdn++;
+		if (tc_server_tcp_con == -1) {
+			fds[fdn].fd = tc_server_tcp_fd;
+			fds[fdn].events = POLLIN;
+			fd_tcp = &fds[fdn];
+			fdn++;
+		}
+		fds[fdn].fd = TC_MSG_QUEUE_POLLFD(&tc_server_queue);
+		fds[fdn].events = POLLIN;
+		fd_queue = &fds[fdn];
+		fdn++;
+		if (tc_server_tcp_con >= 0) {
+			fds[fdn].fd = tc_server_tcp_con;
+			fds[fdn].events = POLLIN;
+			fd_tcp_con = &fds[fdn];
+			fdn++;
+		}
+		int r = poll(fds, fdn, -1);
+		if (fd_udp && fd_udp->revents & POLLIN) {
+			/* We have received a message from UDP */
 			struct sockaddr_in src;
 			socklen_t src_len = sizeof(src);
 			char buf[257];
-			ssize_t r = recvfrom(tc_server_fd, buf, sizeof(buf)-1,
+			ssize_t r = recvfrom(tc_server_udp_fd, buf, sizeof(buf)-1,
 			                     0, (struct sockaddr *)&src, &src_len);
 			if (r > 0) {
 				buf[r] = 0;
@@ -78,7 +205,57 @@ void tc_server_exec(void)
 					tc_log(TC_LOG_ERR, "Error in command: \"%s\"", buf);
 			}
 		}
-		if (fds[1].revents & POLLIN) {
+		if (fd_tcp && fd_tcp->revents & POLLIN) {
+			/* We have received a TCP connection */
+			struct sockaddr_in src;
+			socklen_t src_len = sizeof(src);
+			int r = accept(tc_server_tcp_fd, (struct sockaddr *)&src, &src_len);
+			if (r >= 0) {
+				tc_server_tcp_con = r;
+				tc_log(TC_LOG_INFO, "TCP connection established");
+			}
+		}
+		if (fd_tcp_con && fd_tcp_con->revents & POLLIN) {
+			/* We have received TCP data */
+			int r = read(tc_server_tcp_con, 
+			             tc_server_tcp_data + tc_server_tcp_len,
+			             sizeof(tc_server_tcp_data) - tc_server_tcp_len - 1);
+			if (r > 0) {
+				tc_server_tcp_len += r;
+				int r = tc_server_tcp_analyze(tc_server_tcp_data, tc_server_tcp_len);
+				if (r < 0) {
+					const char *str = "HTTP 500 Internal server error\n";
+					write(tc_server_tcp_con, str, strlen(str));
+					tc_server_tcp_len = 0;
+					close(tc_server_tcp_con);
+					tc_server_tcp_con = -1;
+					tc_log(TC_LOG_INFO, "TCP con closed with errors");
+				}
+				if (r == 0) {
+					const char *str = "HTTP 200 OK\n";
+					write(tc_server_tcp_con, str, strlen(str));
+					tc_server_tcp_len = 0;
+					close(tc_server_tcp_con);
+					tc_server_tcp_con = -1;
+					tc_log(TC_LOG_INFO, "TCP con closed with errors");
+				}
+			}
+			if (r < 0 || tc_server_tcp_len == sizeof(tc_server_tcp_data)-1) {
+				tc_log(TC_LOG_INFO, "Error in TCP communication");
+				tc_server_tcp_len = 0;
+				close(tc_server_tcp_con);
+				tc_server_tcp_con = -1;
+			}
+			if (r == 0) {
+				tc_server_tcp_data[tc_server_tcp_len] = 0;
+				tc_log(TC_LOG_INFO, "TCP: \"%s\"", tc_server_tcp_data);
+				tc_server_tcp_len = 0;
+				close(tc_server_tcp_con);
+				tc_server_tcp_con = -1;
+				tc_log(TC_LOG_INFO, "TCP con closed");
+			}
+		}
+		if (fd_queue && fd_queue->revents & POLLIN) {
 			/* We have received an event */
 			tc_msg_t msg;
 			if (tc_msg_recv(&tc_server_queue, &msg)) {
