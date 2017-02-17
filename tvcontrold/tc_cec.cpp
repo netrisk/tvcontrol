@@ -76,13 +76,13 @@ static tc_cec_device_t tc_cec_devices[TC_CEC_DEVICES_COUNT];
 
 /* --- CEC event management ----------------------------------------------- */
 
-static int tc_cec_logmessage(void *cbparam, CEC::cec_log_message message)
+static void tc_cec_logmessage(void *cbparam, const CEC::cec_log_message *message)
 {
-	if ((message.level & tc_cec_log_level) != message.level)
-		return 0;
+	if ((message->level & tc_cec_log_level) != message->level)
+		return;
 	uint8_t severity = TC_LOG_ERR;
 	const char *prefix = "";
-	switch (message.level) {
+	switch (message->level) {
 	default:
 	case CEC::CEC_LOG_ERROR:   severity = TC_LOG_ERR;   break;
 	case CEC::CEC_LOG_WARNING: severity = TC_LOG_WARN;  break;
@@ -90,15 +90,13 @@ static int tc_cec_logmessage(void *cbparam, CEC::cec_log_message message)
 	case CEC::CEC_LOG_TRAFFIC: severity = TC_LOG_DEBUG; prefix = "TRAFFIC: "; break;
 	case CEC::CEC_LOG_DEBUG:   severity = TC_LOG_DEBUG; break;
 	}
-	tc_log(severity, "%s%s", prefix, message.message);
-	return 0;
+	tc_log(severity, "%s%s", prefix, message->message);
 }
 
-static int tc_cec_keypress(void *cbparam, CEC::cec_keypress key)
+static void tc_cec_keypress(void *cbparam, const CEC::cec_keypress *key)
 {
 	tc_log(TC_LOG_WARN, "Unknown key pressed: code=%u duration=%u",
-	       (unsigned)key.keycode, (unsigned)key.duration);
-	return 0;
+	       (unsigned)key->keycode, (unsigned)key->duration);
 }
 
 /**
@@ -121,86 +119,85 @@ static void tc_cec_event(char *event)
 	tc_server_event(event, l);
 }
 
-static int tc_cec_command(void *cbparam, CEC::cec_command command)
+static void tc_cec_command(void *cbparam, const CEC::cec_command *command)
 {
 	// Try to find the initiator device
 	tc_cec_device_t *initiator = NULL;
-	if (command.initiator >= 0 && 
-	    command.initiator < TC_CEC_DEVICES_COUNT)
-		initiator = &tc_cec_devices[command.initiator];
+	if (command->initiator >= 0 && 
+	    command->initiator < TC_CEC_DEVICES_COUNT)
+		initiator = &tc_cec_devices[command->initiator];
 
 	// Check if it is a vendor id command
-	if (command.opcode_set &&
-	    command.opcode == CEC::CEC_OPCODE_DEVICE_VENDOR_ID &&
+	if (command->opcode_set &&
+	    command->opcode == CEC::CEC_OPCODE_DEVICE_VENDOR_ID &&
 	    initiator &&
-	    command.parameters.size == 3) {
+	    command->parameters.size == 3) {
 		initiator->detected = true;
 		initiator->vendor = (CEC::cec_vendor_id)
-			((((uint32_t)command.parameters.data[0]) << 16) |
-			 (((uint32_t)command.parameters.data[1]) << 8) |
-			  ((uint32_t)command.parameters.data[2]));
+			((((uint32_t)command->parameters.data[0]) << 16) |
+			 (((uint32_t)command->parameters.data[1]) << 8) |
+			  ((uint32_t)command->parameters.data[2]));
 		tc_log(TC_LOG_INFO, "Detected %s(%u) by %s(0x%06x)",
-		       tc_cec_adapter->ToString(command.initiator),
-		       (unsigned)command.initiator,
+		       tc_cec_adapter->ToString(command->initiator),
+		       (unsigned)command->initiator,
 		       tc_cec_adapter->ToString(initiator->vendor),
 		       (unsigned)initiator->vendor);
-	} else if (command.opcode_set &&
-	           command.opcode == CEC::CEC_OPCODE_ACTIVE_SOURCE) {
+	} else if (command->opcode_set &&
+	           command->opcode == CEC::CEC_OPCODE_ACTIVE_SOURCE) {
 		#ifdef TC_CEC_DEBUG
 		tc_log(TC_LOG_DEBUG, "cec: activesource: %s",
-		       tc_cec_adapter->ToString(command.initiator));
+		       tc_cec_adapter->ToString(command->initiator));
 		#endif /* TC_CEC_DEBUG */
 		char event[256];
 		snprintf(event, sizeof(event), "on_cec_activesource_%s",
-		         tc_cec_adapter->ToString(command.initiator));
+		         tc_cec_adapter->ToString(command->initiator));
 		tc_cec_event(event);
-	} else if (command.opcode_set &&
-	           command.opcode == CEC::CEC_OPCODE_ROUTING_CHANGE &&
-	           command.parameters.size == 4) {
+	} else if (command->opcode_set &&
+	           command->opcode == CEC::CEC_OPCODE_ROUTING_CHANGE &&
+	           command->parameters.size == 4) {
 		#ifdef TC_CEC_DEBUG
 		tc_log(TC_LOG_DEBUG, "cec: routingchange: %s from %02x%02x to %02x%02x",
-		       tc_cec_adapter->ToString(command.initiator),
-		       command.parameters.data[0],
-		       command.parameters.data[1],
-		       command.parameters.data[2],
-		       command.parameters.data[3]);
+		       tc_cec_adapter->ToString(command->initiator),
+		       command->parameters.data[0],
+		       command->parameters.data[1],
+		       command->parameters.data[2],
+		       command->parameters.data[3]);
 		#endif /* TC_CEC_DEBUG */
 		char event[256];
 		snprintf(event, sizeof(event), "on_cec_routingchange_%s_%02x%02x",
-		         tc_cec_adapter->ToString(command.initiator),
-		         command.parameters.data[2],
-		         command.parameters.data[3]);
+		         tc_cec_adapter->ToString(command->initiator),
+		         command->parameters.data[2],
+		         command->parameters.data[3]);
 		tc_cec_event(event);
 	} else {
 		char parameters[512];
 		uint32_t parameters_length = 0;
 		parameters[0] = 0;
 		uint32_t i;
-		for (i = 0; i < command.parameters.size; i++)
+		for (i = 0; i < command->parameters.size; i++)
 			parameters_length += snprintf(parameters + parameters_length,
 			                              sizeof(parameters) - parameters_length,
-			                              "%02x", command.parameters.data[i]);
+			                              "%02x", command->parameters.data[i]);
 		tc_log(TC_LOG_WARN, "Unknown command executed");
 		tc_log(TC_LOG_WARN, "  initiator=%s(%u)",
-		       tc_cec_adapter->ToString(command.initiator),
-		       (unsigned)command.initiator);
+		       tc_cec_adapter->ToString(command->initiator),
+		       (unsigned)command->initiator);
 		tc_log(TC_LOG_WARN, "  destination=%s(%u)",
-		       tc_cec_adapter->ToString(command.destination),
-		       (unsigned)command.destination);
+		       tc_cec_adapter->ToString(command->destination),
+		       (unsigned)command->destination);
 		tc_log(TC_LOG_WARN, "  flags:%s%s",
-		       command.ack ? " ack" : "",
-		       command.eom ? " eom" : "");
-		if (command.opcode_set)
+		       command->ack ? " ack" : "",
+		       command->eom ? " eom" : "");
+		if (command->opcode_set)
 			tc_log(TC_LOG_WARN, "  opcode=%s(0x%02x)",
-			       tc_cec_adapter->ToString(command.opcode),
-			       (unsigned)command.opcode);
+			       tc_cec_adapter->ToString(command->opcode),
+			       (unsigned)command->opcode);
 		tc_log(TC_LOG_WARN, "  parameters=%s",  parameters);
-		tc_log(TC_LOG_WARN, "  timeout=%u ms",  (unsigned)command.transmit_timeout);
+		tc_log(TC_LOG_WARN, "  timeout=%u ms",  (unsigned)command->transmit_timeout);
 	}
-	return 0;
 }
 
-static int tc_cec_alert(void *cbparam, const CEC::libcec_alert type,
+static void tc_cec_alert(void *cbparam, const CEC::libcec_alert type,
                         CEC::libcec_parameter param)
 {
 	switch (type) {
@@ -213,7 +210,6 @@ static int tc_cec_alert(void *cbparam, const CEC::libcec_alert type,
 		tc_log(TC_LOG_WARN, "Unknown alert: type %u", type);
 		break;
 	}
-	return 0;
 }
 
 
@@ -229,10 +225,10 @@ int tc_cec_init(void)
 	tc_cec_callbacks.Clear();
 	tc_cec_config.clientVersion = CEC::LIBCEC_VERSION_CURRENT;
 	tc_cec_config.bActivateSource = 0;
-	tc_cec_callbacks.CBCecLogMessage = &tc_cec_logmessage;
-	tc_cec_callbacks.CBCecKeyPress   = &tc_cec_keypress;
-	tc_cec_callbacks.CBCecCommand    = &tc_cec_command;
-	tc_cec_callbacks.CBCecAlert      = &tc_cec_alert;
+	tc_cec_callbacks.logMessage      = &tc_cec_logmessage;
+	tc_cec_callbacks.keyPress        = &tc_cec_keypress;
+	tc_cec_callbacks.commandReceived = &tc_cec_command;
+	tc_cec_callbacks.alert           = &tc_cec_alert;
 	tc_cec_config.callbacks          = &tc_cec_callbacks;
 
 	// Application specific configuration of CEC objects
@@ -303,8 +299,8 @@ int tc_cec_init(void)
 	int result = 0;
 	if (!tc_cec_port) {
 		tc_log(TC_LOG_INFO, "Autodetecting CEC adapters");
-		CEC::cec_adapter devices[10];
-		uint8_t found = tc_cec_adapter->FindAdapters(devices, 10, NULL);
+		CEC::cec_adapter_descriptor devices[10];
+		uint8_t found = tc_cec_adapter->DetectAdapters(devices, 10);
 		if (found <= 0) {
 			tc_log(TC_LOG_ERR, "No CEC devices found");
  			result = -1;
@@ -312,9 +308,9 @@ int tc_cec_init(void)
 		if (!result) {
 			uint32_t i;
 			for (i = 0; i < found; i++)
-				tc_log(TC_LOG_INFO, "  CEC found: %s%s", devices[i].comm,
-			                i ? " (selected)" : "");
-			tc_cec_port = strdup(devices[0].comm);
+				tc_log(TC_LOG_INFO, "  CEC found: %s%s", devices[i].strComName,
+			                !i ? " (selected)" : "");
+			tc_cec_port = strdup(devices[0].strComName);
 		}
 	}
 
