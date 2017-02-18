@@ -72,7 +72,7 @@ static int tc_server_tcp_analyze(const uint8_t *data, uint32_t len)
 		buf[buf_len++] = c;
 	}
 	/* Execute the command */
-	buf[buf_len++] = 0;
+	buf[buf_len] = 0;
 	/* Check if it is a command */
 	if (buf_len >= 5 && !memcmp(buf, "/cmd/", 5)) {
 		char *cmd = buf + 5;
