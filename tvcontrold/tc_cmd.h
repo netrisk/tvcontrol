@@ -23,4 +23,12 @@ int tc_cmd_init(bool readhome);
  */
 int tc_cmd(const char *buf, uint32_t len);
 
+/**
+ *  Get an string of the environment variables in csv format.
+ *
+ *  \retval The pointer to the CSV with the complete environment.
+ *  \remarks The memory is allocated so free should be called.
+ */
+const char *tc_cmd_env_csv(void);
+
 #endif /* TC_CMD_H_INCLUDED */

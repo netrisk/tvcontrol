@@ -166,6 +166,122 @@ static int tc_cmd_env_set(const char *name,  uint32_t namelen,
 }
 
 /**
+ *  Check if the CSV scaping is required.
+ *
+ *  \param text  Text to check if scaping is required.
+ *  \return True if scape required.
+ */
+static bool tc_cmd_env_csv_scape_required(const char *text)
+{
+	while (true) {
+		char c = *text++;
+		if (!c)
+			return false;
+		if (c == ' ' || c == '\t' || c == ',' || c == '\n' || c == '\"')
+			return true;
+	}
+}
+
+/**
+ *  Get the length of a CSV value after being scaped.
+ *
+ *  \param text  Text to be scaped.
+ *  \return The number of characters after being scaped.
+ */
+static uint32_t tc_cmd_env_csv_scape_len(const char *text)
+{
+	uint32_t len = 0;
+	bool scape = tc_cmd_env_csv_scape_required(text);
+	if (scape)
+		len++;
+	uint32_t i = 0;
+	while (true) {
+		char c = *text++;
+		if (!c)
+			break;
+		if (c == '\"')
+			len++;
+		len++;
+	}
+	if (scape)
+		len++;
+	return len;
+}
+
+/**
+ *  Write an scaped text into the output.
+ *
+ *  \param output  Output buffer (that should have space).
+ *  \param text    Text to scape as CSV.
+ *  \return New output pointer advanced.
+ */
+static char *tc_cmd_env_csv_scape(char *output, const char *text)
+{
+	bool scape = tc_cmd_env_csv_scape_required(text);
+	if (scape)
+		*output++ = '\"';
+	uint32_t i = 0;
+	while (true) {
+		char c = *text++;
+		if (!c)
+			break;
+		if (c == '\"')
+			*output++ = '\"';
+		*output++ = c;
+	}
+	if (scape)
+		*output++ = '\"';
+	return output;
+}
+
+const char *tc_cmd_env_csv(void)
+{
+	/* Debug */
+	#ifdef TC_CMD_DEBUG
+	tc_log(TC_LOG_DEBUG, "tc_cmd: env_csv");
+	#endif /* TC_CMD_DEBUG */
+
+	/* Calculate tht length */
+	uint32_t len = 1;
+	tc_cmd_env_t *e = tc_cmd_env;
+	while (e) {
+		len += tc_cmd_env_csv_scape_len(e->name);
+		len++;
+		len += tc_cmd_env_csv_scape_len(e->value);
+		len++;
+		e = e->next;
+	}
+
+	/* Allocate the output */
+	#ifdef TC_CMD_DEBUG
+	tc_log(TC_LOG_DEBUG, "tc_cmd: env_csv: alloc:%u", (unsigned)len);
+	#endif /* TC_CMD_DEBUG */
+	char *output = (char *)malloc(len);
+
+	/* Write each entry of the output */
+	char *o = output;
+	e = tc_cmd_env;
+	while (e) {
+		o = tc_cmd_env_csv_scape(o, e->name);
+		*o++ = ',';
+		o = tc_cmd_env_csv_scape(o, e->value);
+		*o++ = '\n';
+		e = e->next;
+	}
+
+	/* Write the end of text */
+	*o++ = 0;
+
+	/* Debug */
+	#ifdef TC_CMD_DEBUG
+	tc_log(TC_LOG_DEBUG, "tc_cmd: env_csv: finished");
+	#endif /* TC_CMD_DEBUG */
+
+	/* Return the output */
+	return output;
+}
+
+/**
  *  Create a new buffer with the replaced environment values.
  * 
  *  \param buf  Buffer with values to be replaced.
