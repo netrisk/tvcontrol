@@ -13,7 +13,29 @@ static int tc_server_tcp_fd = -1;
 static int tc_server_tcp_con = -1;
 static tc_msg_queue_t tc_server_queue = TC_MSG_QUEUE_INIT;
 static uint8_t tc_server_tcp_data[1000];
-uint32_t tc_server_tcp_len = 0;
+static uint32_t tc_server_tcp_len = 0;
+static bool tc_server_tcp_response_todo = false;
+static const char *tc_server_tcp_response_data = (const char *)NULL;
+static const char *tc_server_tcp_response[3] = { NULL, NULL, NULL };
+static uint32_t tc_server_tcp_response_index = 0;
+static uint32_t tc_server_tcp_response_offset = 0;
+
+/* Enable this to debug */
+/* #define TC_SERVER_DEBUG */
+
+/**
+ *  Close the TCP connection and free the data.
+ */
+static void tc_server_tcp_close(void)
+{
+	if (tc_server_tcp_response_data) {
+		free((void *)tc_server_tcp_response_data);
+		tc_server_tcp_response_data = NULL;
+	}
+	tc_server_tcp_len = 0;
+	close(tc_server_tcp_con);
+	tc_server_tcp_con = -1;
+}
 
 /**
  *  Analize the HTTP header.
@@ -79,13 +101,21 @@ static int tc_server_tcp_analyze(const uint8_t *data, uint32_t len)
 		uint32_t cmd_len = buf_len - 5;
 		tc_log(TC_LOG_INFO, "Command: \"%s\"", cmd);
 		int ret = tc_cmd(cmd, cmd_len);
-		if (ret > 0)
+		if (ret > 0) {
+			tc_server_tcp_response_data = tc_cmd_env_csv();
 			return 0;
+		}
 		if (ret < 0) {
 			tc_log(TC_LOG_ERR, "Error in command: \"%s\"", cmd);
 			return -1;
 		}
 		return 1;
+	} else if (buf_len == 5 && !memcmp(buf, "/ping", 5)) {
+		#ifdef TC_SERVER_DEBUG
+		tc_log(TC_LOG_DEBUG, "server: ping");
+		#endif /* TC_SERVER_DEBUG */
+		tc_server_tcp_response_data = tc_cmd_env_csv();
+		return 0;
 	}
 	/* Return success */
 	return 0;
@@ -101,10 +131,8 @@ void tc_server_release(void)
 		close(tc_server_tcp_fd);
 		tc_server_tcp_fd = -1;
 	}
-	if (tc_server_tcp_con != -1) {
-		close(tc_server_tcp_con);
-		tc_server_tcp_con = -1;
-	}
+	if (tc_server_tcp_con != -1)
+		tc_server_tcp_close();
 	tc_msg_queue_close(&tc_server_queue);
 }
 
@@ -183,7 +211,7 @@ void tc_server_exec(void)
 		fdn++;
 		if (tc_server_tcp_con >= 0) {
 			fds[fdn].fd = tc_server_tcp_con;
-			fds[fdn].events = POLLIN;
+			fds[fdn].events = tc_server_tcp_response_todo ? POLLOUT : POLLIN;
 			fd_tcp_con = &fds[fdn];
 			fdn++;
 		}
@@ -212,10 +240,12 @@ void tc_server_exec(void)
 			int r = accept(tc_server_tcp_fd, (struct sockaddr *)&src, &src_len);
 			if (r >= 0) {
 				tc_server_tcp_con = r;
+				tc_server_tcp_response_todo = false;
 				tc_log(TC_LOG_INFO, "TCP connection established");
 			}
 		}
-		if (fd_tcp_con && fd_tcp_con->revents & POLLIN) {
+		if (fd_tcp_con && !tc_server_tcp_response_todo &&
+		    (fd_tcp_con->revents & POLLIN)) {
 			/* We have received TCP data */
 			int r = read(tc_server_tcp_con, 
 			             tc_server_tcp_data + tc_server_tcp_len,
@@ -224,35 +254,59 @@ void tc_server_exec(void)
 				tc_server_tcp_len += r;
 				int r = tc_server_tcp_analyze(tc_server_tcp_data, tc_server_tcp_len);
 				if (r < 0) {
-					const char *str = "HTTP 500 Internal server error\n";
-					write(tc_server_tcp_con, str, strlen(str));
-					tc_server_tcp_len = 0;
-					close(tc_server_tcp_con);
-					tc_server_tcp_con = -1;
-					tc_log(TC_LOG_INFO, "TCP con closed with errors");
+					#ifdef TC_SERVER_DEBUG
+					tc_log(TC_LOG_DEBUG, "server: tcp: parsing error");
+					#endif /* TC_SERVER_DEBUG */
+					tc_server_tcp_response_todo = true;
+					tc_server_tcp_response[0] = "HTTP 500 Internal server error\n\n";
+					tc_server_tcp_response[1] = tc_server_tcp_response_data;
+					tc_server_tcp_response[2] = NULL;
+					tc_server_tcp_response_index = 0;
+					tc_server_tcp_response_offset = 0;
+				} else if (r == 0) {
+					#ifdef TC_SERVER_DEBUG
+					tc_log(TC_LOG_DEBUG, "server: tcp: OK");
+					#endif /* TC_SERVER_DEBUG */
+					tc_server_tcp_response_todo = true;
+					tc_server_tcp_response[0] = "HTTP 200 OK\n\n";
+					tc_server_tcp_response[1] = tc_server_tcp_response_data;
+					tc_server_tcp_response[2] = NULL;
+					tc_server_tcp_response_index = 0;
+					tc_server_tcp_response_offset = 0;
 				}
-				if (r == 0) {
-					const char *str = "HTTP 200 OK\n";
-					write(tc_server_tcp_con, str, strlen(str));
-					tc_server_tcp_len = 0;
-					close(tc_server_tcp_con);
-					tc_server_tcp_con = -1;
-					tc_log(TC_LOG_INFO, "TCP con closed with errors");
-				}
-			}
-			if (r < 0 || tc_server_tcp_len == sizeof(tc_server_tcp_data)-1) {
+			} else if (r < 0 || tc_server_tcp_len == sizeof(tc_server_tcp_data)-1) {
 				tc_log(TC_LOG_INFO, "Error in TCP communication");
-				tc_server_tcp_len = 0;
-				close(tc_server_tcp_con);
-				tc_server_tcp_con = -1;
+				tc_server_tcp_close();
+			} else if (r == 0) {
+				#ifdef TC_SERVER_DEBUG
+				tc_log(TC_LOG_DEBUG, "server: tcp: premature close");
+				#endif /* TC_SERVER_DEBUG */
+				/* Closed remotely */
+				tc_server_tcp_response_todo = true;
+				tc_server_tcp_response[0] = "HTTP 500 Internal server error\n\n";
+				tc_server_tcp_response[1] = NULL;
+				tc_server_tcp_response_index = 0;
+				tc_server_tcp_response_offset = 0;
 			}
-			if (r == 0) {
-				tc_server_tcp_data[tc_server_tcp_len] = 0;
-				tc_log(TC_LOG_INFO, "TCP: \"%s\"", tc_server_tcp_data);
-				tc_server_tcp_len = 0;
-				close(tc_server_tcp_con);
-				tc_server_tcp_con = -1;
-				tc_log(TC_LOG_INFO, "TCP con closed");
+		}
+		if (fd_tcp_con && tc_server_tcp_response_todo &&
+		    (fd_tcp_con->revents & POLLOUT)) {
+			/* We have to send TCP data */
+			const char *ptr = 
+			             tc_server_tcp_response[tc_server_tcp_response_index]
+			                + tc_server_tcp_response_offset;
+			int r = write(tc_server_tcp_con, ptr, strlen(ptr));
+			if (r > 0) {
+				if (!ptr[r]) {
+					tc_server_tcp_response_index++;
+					tc_server_tcp_response_offset = 0;
+					if (!tc_server_tcp_response[tc_server_tcp_response_index])
+						tc_server_tcp_close();
+				} else
+					tc_server_tcp_response_offset += r;
+			} else {
+				tc_log(TC_LOG_ERR, "server: Error sending TCP");
+				tc_server_tcp_close();
 			}
 		}
 		if (fd_queue && fd_queue->revents & POLLIN) {
