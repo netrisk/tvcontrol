@@ -28,11 +28,15 @@ static uint32_t tc_server_tcp_response_offset = 0;
  */
 static void tc_server_tcp_close(void)
 {
+	tc_server_tcp_len = 0;
 	if (tc_server_tcp_response_data) {
 		free((void *)tc_server_tcp_response_data);
 		tc_server_tcp_response_data = NULL;
 	}
-	tc_server_tcp_len = 0;
+	memset(tc_server_tcp_response, 0, sizeof(tc_server_tcp_response));
+	tc_server_tcp_response_index = 0;
+	tc_server_tcp_response_offset = 0;
+	tc_server_tcp_response_todo = false;
 	close(tc_server_tcp_con);
 	tc_server_tcp_con = -1;
 }
@@ -101,8 +105,14 @@ static int tc_server_tcp_analyze(const uint8_t *data, uint32_t len)
 		uint32_t cmd_len = buf_len - 5;
 		tc_log(TC_LOG_INFO, "Command: \"%s\"", cmd);
 		int ret = tc_cmd(cmd, cmd_len);
-		if (ret > 0) {
+		if (ret == 0) {
+			#ifdef TC_SERVER_DEBUG
+			tc_log(TC_LOG_DEBUG, "server: environment preparing");
+			#endif /* TC_SERVER_DEBUG */
 			tc_server_tcp_response_data = tc_cmd_env_csv();
+			#ifdef TC_SERVER_DEBUG
+			tc_log(TC_LOG_DEBUG, "server: environment prepared");
+			#endif /* TC_SERVER_DEBUG */
 			return 0;
 		}
 		if (ret < 0) {
@@ -258,7 +268,7 @@ void tc_server_exec(void)
 					tc_log(TC_LOG_DEBUG, "server: tcp: parsing error");
 					#endif /* TC_SERVER_DEBUG */
 					tc_server_tcp_response_todo = true;
-					tc_server_tcp_response[0] = "HTTP 500 Internal server error\n\n";
+					tc_server_tcp_response[0] = "HTTP/1.0 400 Bad Request\r\n\r\n";
 					tc_server_tcp_response[1] = tc_server_tcp_response_data;
 					tc_server_tcp_response[2] = NULL;
 					tc_server_tcp_response_index = 0;
@@ -268,7 +278,7 @@ void tc_server_exec(void)
 					tc_log(TC_LOG_DEBUG, "server: tcp: OK");
 					#endif /* TC_SERVER_DEBUG */
 					tc_server_tcp_response_todo = true;
-					tc_server_tcp_response[0] = "HTTP 200 OK\n\n";
+					tc_server_tcp_response[0] = "HTTP/1.0 200 OK\r\n\r\n";
 					tc_server_tcp_response[1] = tc_server_tcp_response_data;
 					tc_server_tcp_response[2] = NULL;
 					tc_server_tcp_response_index = 0;
@@ -283,7 +293,7 @@ void tc_server_exec(void)
 				#endif /* TC_SERVER_DEBUG */
 				/* Closed remotely */
 				tc_server_tcp_response_todo = true;
-				tc_server_tcp_response[0] = "HTTP 500 Internal server error\n\n";
+				tc_server_tcp_response[0] = "HTTP/1.0 400 Bad Request\r\n\r\n";
 				tc_server_tcp_response[1] = NULL;
 				tc_server_tcp_response_index = 0;
 				tc_server_tcp_response_offset = 0;
