@@ -146,7 +146,7 @@ static int tc_cmd_env_set(const char *name,  uint32_t namelen,
 	/* Add the new value */
 	tc_cmd_env_t *e = tc_cmd_env;
 	while (e) {
-		if (!strcmp(e->name, name)) {
+		if (!strncmp(e->name, name, namelen)) {
 			free((void *)e->value);
 			e->value = strndup(value, valuelen);
 			tc_log(TC_LOG_INFO, "Variable %s = \"%s\" (replaced value)",
