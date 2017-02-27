@@ -16,7 +16,7 @@
 #include <sys/syscall.h>
 
 /* Enable this macro for debugging */
-#define TC_OSD_DEBUG
+/* #define TC_OSD_DEBUG */
 
 /** Thread for OSD painting */
 static pthread_t tc_osd_thread;
