@@ -251,7 +251,9 @@ void tc_server_exec(void)
 			if (r >= 0) {
 				tc_server_tcp_con = r;
 				tc_server_tcp_response_todo = false;
-				tc_log(TC_LOG_INFO, "TCP connection established");
+				#ifdef TC_SERVER_DEBUG
+				tc_log(TC_LOG_DEBUG, "TCP connection established");
+				#endif /* TC_SERVER_DEBUG */
 			}
 		}
 		if (fd_tcp_con && !tc_server_tcp_response_todo &&
