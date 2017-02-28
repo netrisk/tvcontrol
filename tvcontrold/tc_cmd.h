@@ -24,6 +24,19 @@ int tc_cmd_init(bool readhome);
 int tc_cmd(const char *buf, uint32_t len);
 
 /**
+ *  Set a new environment variable.
+ *
+ *  \param name     Name of the environment variable.
+ *  \param namelen  Length of the name of the variable.
+ *  \param value    Value of the environment variable.
+ *  \param valuelen Length of the value of the variable.
+ *  \retval -1 on error (with a log entry).
+ *  \retval 0 on success.
+ */
+int tc_cmd_env_set(const char *name,  uint32_t namelen,
+                   const char *value, uint32_t valuelen);
+
+/**
  *  Get an string of the environment variables in csv format.
  *
  *  \retval The pointer to the CSV with the complete environment.

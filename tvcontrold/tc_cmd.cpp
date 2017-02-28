@@ -119,22 +119,44 @@ typedef struct tc_cmd_env_t {
 static tc_cmd_env_t *tc_cmd_env = NULL;
 
 /**
- *  Set a new environment variable.
+ *  Find the environment variable structure.
  *
  *  \param name     Name of the environment variable.
  *  \param namelen  Length of the name of the variable.
- *  \param value    Value of the environment variable.
- *  \param valuelen Length of the value of the variable.
- *  \retval -1 on error (with a log entry).
- *  \retval 0 on success.
+ *  \retval NULL if not found.
+ *  \retval A pointer to the environment structure if found.
  */
-static int tc_cmd_env_set(const char *name,  uint32_t namelen,
-                           const char *value, uint32_t valuelen)
+static tc_cmd_env_t *tc_cmd_env_find(const char *name, uint32_t namelen)
+{
+	tc_cmd_env_t *e = tc_cmd_env;
+	while (e) {
+		if (strlen(e->name) == namelen &&
+		    !strncmp(e->name, name, namelen))
+			return e;
+		e = e->next;
+	}
+	return NULL;
+}
+
+/**
+ *  Check if a character is valid for an environment name
+ *
+ *  \param ch  Character
+ *  \retval true if it is valid
+ *  \retval false if it is not valid
+ */
+static bool tc_cmd_env_ischar(char ch)
+{
+	return isalnum(ch) || ch == '_';
+}
+
+int tc_cmd_env_set(const char *name,  uint32_t namelen,
+                   const char *value, uint32_t valuelen)
 {
 	/* Validate the name */
 	uint32_t i = 0;
 	for (i = 0; i < namelen; i++) {
-		if (!isalnum(name[i]))
+		if (!tc_cmd_env_ischar(name[i]))
 			break;
 	}
 	if (i < namelen || namelen == 0) {
@@ -143,18 +165,17 @@ static int tc_cmd_env_set(const char *name,  uint32_t namelen,
 		return -1;
 	}
 
-	/* Add the new value */
-	tc_cmd_env_t *e = tc_cmd_env;
-	while (e) {
-		if (!strncmp(e->name, name, namelen)) {
-			free((void *)e->value);
-			e->value = strndup(value, valuelen);
-			tc_log(TC_LOG_INFO, "Variable %s = \"%s\" (replaced value)",
-			       strndupa(name, namelen), strndupa(value, valuelen));
-			return 0;
-		}
-		e = e->next;
+	/* Replace an existing value if found */
+	tc_cmd_env_t *e = tc_cmd_env_find(name, namelen);
+	if (e) {
+		free((void *)e->value);
+		e->value = strndup(value, valuelen);
+		tc_log(TC_LOG_INFO, "Variable %s = \"%s\" (replaced value)",
+		       strndupa(name, namelen), strndupa(value, valuelen));
+		return 0;
 	}
+
+	/* Add the new value if not found */
 	e = (tc_cmd_env_t *)malloc(sizeof(tc_cmd_env_t));
 	e->name = strndup(name, namelen);
 	e->value = strndup(value, valuelen);
@@ -314,18 +335,13 @@ static char *tc_cmd_env_subs(const char *buf, uint32_t *len)
 			if (buf[i] != '$') {
 				uint32_t endi;
 				for (endi = i; endi < *len; endi++)
-					if (!isalnum(buf[endi]))
+					if (!tc_cmd_env_ischar(buf[i]))
 						break;
 				if (endi == i) { 
 					tc_log(TC_LOG_ERR, "Syntax error: $ not followed by variable name");
 					break;
 				}
-				tc_cmd_env_t *env = tc_cmd_env;
-				while (env) {
-					if (!strncmp(env->name, buf + i, endi - i))
-						break;
-					env = env->next;
-				}
+				tc_cmd_env_t *env = tc_cmd_env_find(buf + i, endi - i);
 				if (!env) {
 					tc_log(TC_LOG_ERR, "Syntax error: Variable \"%s\" not found",
 					       strndupa(buf + i, endi - i));
