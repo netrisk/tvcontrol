@@ -1,6 +1,7 @@
 #include <tc_pioneer.h>
 #include <tc_log.h>
 #include <tc_server.h>
+#include <tc_cmd.h>
 #include <unistd.h>
 #include <sys/poll.h>
 #include <sys/types.h>
@@ -121,6 +122,33 @@ static int tc_pioneer_parse_decn(const char *buf, uint32_t *data, uint32_t n)
 }
 
 /**
+ *  Update the volume of the pioneer based on the current status
+ *
+ *  \param p  Pioneer object.
+ */
+static void tc_pioneer_update_volume(tc_pioneer_t *p)
+{
+	char vol_str[32];
+	if (p->mute_known && p->mute)
+		snprintf(vol_str, sizeof(vol_str), "mute");
+	else {
+		int32_t vol_result = p->vol;
+		vol_result -= 161;
+		vol_result *= 5;
+		if (vol_result == 0)
+			snprintf(vol_str, sizeof(vol_str), "0.0dB");
+		else if (vol_result > 0)
+			snprintf(vol_str, sizeof(vol_str), "+%u.%udB", 
+			         vol_result/10, vol_result%10);
+		else if (vol_result < 0)
+			snprintf(vol_str, sizeof(vol_str), "-%u.%udB", 
+			         (-vol_result)/10, (-vol_result)%10);
+	}
+	const char *name = "pioneer_volume";
+	tc_cmd_env_set(name, strlen(name), vol_str, strlen(vol_str));
+}
+
+/**
  *  Function called when a pioneer message has been received.
  *
  *  \param p    Pioneer object.
@@ -146,6 +174,7 @@ static void tc_pioneer_rx(tc_pioneer_t *p, const char *buf,
 			#ifdef TC_PIONEER_DEBUG
 			tc_log(TC_LOG_DEBUG, "pioneer: volume: \"%u\"", p->vol);
 			#endif /* TC_PIONEER_DEBUG */
+			tc_pioneer_update_volume(p);
 			return;
 		}
 	/* Check for the on screen information */
@@ -190,6 +219,7 @@ static void tc_pioneer_rx(tc_pioneer_t *p, const char *buf,
 				}
 			}
 			p->mute_known = true;
+			tc_pioneer_update_volume(p);
 			return;
 		}
 	/* Check for MCACC information */
@@ -245,6 +275,7 @@ static uint32_t tc_pioneer_tx(tc_pioneer_t *p, char *buf, uint32_t len,
 	case TC_PIONEER_CMD_QUERY:
 		str = "?P\r\n?V\r\n?M\r\n?MC\r\n";
 		p->mute_known = false;
+		tc_pioneer_update_volume(p);
 		break;
 	case TC_PIONEER_CMD_POWERON: str = "PO\r\n"; break;
 	case TC_PIONEER_CMD_STANDBY: str = "PF\r\n"; break;
@@ -272,6 +303,7 @@ static uint32_t tc_pioneer_tx(tc_pioneer_t *p, char *buf, uint32_t len,
 		if (vol > 185)
 			vol = 185;
 		p->vol = vol;
+		tc_pioneer_update_volume(p);
 		return snprintf(buf, len, "%03uVL\r\n", vol);
 	}
 	case TC_PIONEER_CMD_MUTEON:     str = "MO\r\n"; break;
