@@ -3,6 +3,7 @@
 #include <tc_log.h>
 #include <tc_pioneer.h>
 #include <tc_osd.h>
+#include <tc_mouse.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -335,7 +336,7 @@ static char *tc_cmd_env_subs(const char *buf, uint32_t *len)
 			if (buf[i] != '$') {
 				uint32_t endi;
 				for (endi = i; endi < *len; endi++)
-					if (!tc_cmd_env_ischar(buf[i]))
+					if (!tc_cmd_env_ischar(buf[endi]))
 						break;
 				if (endi == i) { 
 					tc_log(TC_LOG_ERR, "Syntax error: $ not followed by variable name");
@@ -625,6 +626,32 @@ static int tc_cmd_pioneer_init(const char *buf, uint32_t len)
 	return 0;
 }
 
+/**
+ *  Execute a Mouse command.
+ *
+ *  \param cmd   Pointer to the command to execute
+ *  \param buf   Buffer with the name of the command to execute
+ *  \param len   Length of the command to execute.
+ *  \retval 0 on success of normal command.
+ *  \retval 1 on exit command.
+ *  \retval -1 on error in command.
+ */
+static int tc_cmd_mouse_exec(tc_cmd_t *cmd, const char *buf, uint32_t len)
+{
+	/* svg ... */
+	if (tc_cmd_starts(&buf, &len, "move")) {
+		tc_mouse_move();
+		return 0;
+	}
+	return -1;
+}
+
+/** OSD command object */
+static tc_cmd_t tc_cmd_mouse = {
+	.name = "mouse",
+	.exec = tc_cmd_mouse_exec
+};
+
 
 /* --- Scripting commands ------------------------------------------------- */
 
@@ -841,6 +868,7 @@ int tc_cmd_init(bool readhome)
 	#ifdef ENABLE_CEC
 	tc_cmd_add(&tc_cmd_cec);
 	#endif /* ENABLE_CEC */
+	tc_cmd_add(&tc_cmd_mouse);
 	tc_cmd_add(&tc_cmd_exec_cmd);
 	tc_cmd_add(&tc_cmd_init_cmd);
 	if (tc_cmd_load("/etc/tvcontrold/cmd.conf") < 0)

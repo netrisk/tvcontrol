@@ -8,6 +8,7 @@ tvcontrold_SOURCES=\
 	tc_pioneer.cpp \
 	tc_osd.cpp \
 	tc_tools.cpp \
-	tc_msg.cpp
+	tc_msg.cpp \
+	tc_mouse.cpp
 tvcontrold_CXXFLAGS=@LIBCEC_CFLAGS@ @LIBAOSD_CFLAGS@ @LIBRSVG_CFLAGS@
-tvcontrold_LDADD=@LIBCEC_LIBS@ @LIBAOSD_LIBS@ @LIBRSVG_LIBS@ -ldl -lpthread
+tvcontrold_LDADD=@LIBCEC_LIBS@ @LIBAOSD_LIBS@ @LIBRSVG_LIBS@ -ldl -lpthread -lX11
