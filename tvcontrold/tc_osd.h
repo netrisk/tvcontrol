@@ -16,6 +16,11 @@
 int tc_osd_init(void);
 
 /**
+ *  Release the OSD interface.
+ */
+void tc_osd_release(void);
+
+/**
  *  Show an SVG command through OSD.
  *
  *  \param file  SVG file to show.

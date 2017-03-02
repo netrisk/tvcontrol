@@ -17,6 +17,11 @@ int tc_server_init(void);
 void tc_server_release(void);
 
 /**
+ *  Make the TC server exit.
+ */
+void tc_server_exit(void);
+
+/**
  *  Execute the TV control server process.
  */
 void tc_server_exec(void);

@@ -499,3 +499,11 @@ int tc_pioneer_send(tc_pioneer_t *pioneer, uint8_t cmd)
 	}
 	return 0;
 }
+
+void tc_pioneer_release(tc_pioneer_t *pioneer)
+{
+	pthread_cancel(pioneer->thread);
+	pthread_join(pioneer->thread, NULL);
+	free((void *)pioneer->host);
+	free((void *)pioneer->name);
+}

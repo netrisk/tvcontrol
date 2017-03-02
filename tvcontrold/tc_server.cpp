@@ -8,6 +8,7 @@
 #include <sys/poll.h>
 #include <string.h>
 
+static bool tc_server_should_exit = false;
 static int tc_server_udp_fd = -1;
 static int tc_server_tcp_fd = -1;
 static int tc_server_tcp_con = -1;
@@ -197,9 +198,10 @@ int tc_server_init(void)
 void tc_server_exec(void)
 {
 	/* Wait for anything to be received */
-	while (true) {
+	while (!tc_server_should_exit) {
 		/* Check if there is any reception event */
 		struct pollfd fds[4];
+		memset(fds, 0, sizeof(fds));
 		uint32_t fdn = 0;
 		struct pollfd *fd_udp = NULL;
 		struct pollfd *fd_tcp = NULL;
@@ -346,4 +348,9 @@ int tc_server_event(const char *buffer, uint8_t len)
 		return -1;
 	}
 	return 0;
+}
+
+void tc_server_exit(void)
+{
+	tc_server_should_exit = true;
 }

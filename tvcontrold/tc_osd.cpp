@@ -169,7 +169,7 @@ static void *tc_osd_exec(void *arg)
 			struct pollfd fds[1];
 			fds[0].fd = TC_MSG_QUEUE_POLLFD(&tc_osd_queue);
 			fds[0].events = POLLIN;
-			int r = poll(fds, 2, data.aosd ? 0 : -1);
+			int r = poll(fds, 1, data.aosd ? 0 : -1);
 			if (fds[0].revents & POLLIN) {
 				/* We have received an event */
 				int r = tc_msg_recv(&tc_osd_queue, &data.msg);
@@ -228,6 +228,12 @@ int tc_osd_init(void)
 		return -1;
 	}
 	return 0;
+}
+
+void tc_osd_release(void)
+{
+	pthread_cancel(tc_osd_thread);
+	pthread_join(tc_osd_thread, NULL);
 }
 
 int tc_osd_svg(const char *file, uint8_t len)

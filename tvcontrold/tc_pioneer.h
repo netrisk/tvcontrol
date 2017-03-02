@@ -79,4 +79,11 @@ int tc_pioneer_init(tc_pioneer_t *pioneer,
  */
 int tc_pioneer_send(tc_pioneer_t *pioneer, uint8_t cmd);
 
+/**
+ *  Release the pioneer object.
+ *
+ *  \param pioneer  Pioneer object
+ */
+void tc_pioneer_release(tc_pioneer_t *pioneer);
+
 #endif /* TC_PIONEER_H_INCLUDED */

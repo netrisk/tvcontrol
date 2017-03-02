@@ -44,4 +44,9 @@ int tc_cmd_env_set(const char *name,  uint32_t namelen,
  */
 const char *tc_cmd_env_csv(void);
 
+/**
+ *  Release the memory of this module
+ */
+void tc_cmd_release(void);
+
 #endif /* TC_CMD_H_INCLUDED */

@@ -22,6 +22,7 @@ typedef struct tc_cmd_t {
 	const char *name;
 	int (*exec)(tc_cmd_t *cmd, const char *buf, uint32_t len);
 	int (*extend)(tc_cmd_t *cmd, const char *buf, uint32_t len);
+	void (*free)(tc_cmd_t *cmd);
 	tc_cmd_t *next;
 } tc_cmd_t;
 
@@ -600,6 +601,19 @@ static int tc_cmd_pioneer_exec(tc_cmd_t *cmd, const char *buf, uint32_t len)
 }
 
 /**
+ *  Free the pioneer object.
+ *
+ *  \param cmd  Command
+ */
+static void tc_cmd_pioneer_free(tc_cmd_t *cmd)
+{
+	tc_cmd_pioneer_t *p = tc_containerof(cmd, tc_cmd_pioneer_t, cmd);
+	tc_pioneer_release(&p->pioneer);
+	free((void *)p->cmd.name);
+	free(p);
+}
+
+/**
  *  Function to initialize a new pioneer object.
  * 
  *  \param buf  Buffer with the initialization data.
@@ -622,6 +636,7 @@ static int tc_cmd_pioneer_init(const char *buf, uint32_t len)
 	}
 	p->cmd.name = strndup(name, wl);
 	p->cmd.exec = tc_cmd_pioneer_exec;
+	p->cmd.free = tc_cmd_pioneer_free;
 	tc_cmd_add(&p->cmd);
 	return 0;
 }
@@ -724,6 +739,24 @@ static int tc_cmd_script_extend(tc_cmd_t *cmd, const char *buf, uint32_t len)
 }
 
 /**
+ *  Called to free the script command.
+ *
+ *  \param cmd  Command to be freed.
+ */
+static void tc_cmd_script_free(tc_cmd_t *cmd)
+{
+	tc_cmd_script_t *s = tc_containerof(cmd, tc_cmd_script_t, cmd);
+	while (s->entry) {
+		tc_cmd_script_entry_t *e = s->entry;
+		s->entry = e->next;
+		free((void *)e->cmd);
+		free(e);
+	}
+	free((void *)s->cmd.name);
+	free(s);
+}
+
+/**
  *  Initialize the script command.
  *
  *  \param buf   Buffer to initialize it with.
@@ -736,6 +769,7 @@ static int tc_cmd_script_init(const char *buf, uint32_t len)
 	cmd->cmd.name = strndup(buf, len);
 	cmd->cmd.exec = &tc_cmd_script_exec;
 	cmd->cmd.extend = &tc_cmd_script_extend;
+	cmd->cmd.free = &tc_cmd_script_free;
 	tc_cmd_add(&cmd->cmd);
 	tc_cmd_extend = &cmd->cmd;
 	return 0;
@@ -917,4 +951,21 @@ int tc_cmd(const char *buf, uint32_t len)
 	tc_log(TC_LOG_ERR, "Unknown command \"%s\"", strndupa(buf, len));
 	free(newb);
 	return -1;
+}
+
+void tc_cmd_release(void)
+{
+	while (tc_cmd_first) {
+		tc_cmd_t *c = tc_cmd_first;
+		tc_cmd_first = c->next;
+		if (c->free)
+			c->free(c);
+	}
+	while (tc_cmd_env) {
+		tc_cmd_env_t *e = tc_cmd_env;
+		tc_cmd_env = e->next;
+		free((void *)e->name);
+		free((void *)e->value);
+		free(e);
+	}
 }
